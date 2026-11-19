@@ -1,13 +1,17 @@
-
 package com.firefire.painel;
 
 import android.app.Service;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.view.Gravity;
@@ -21,16 +25,20 @@ import android.widget.TextView;
 
 public class FloatingService extends Service {
 
+    private static final String CHANNEL_ID = "painel_flutuante";
+    private static final int NOTIFICATION_ID = 1001;
+    private static final int GOLD = 0xFFFFD700;
+
     private WindowManager manager;
     private WindowManager.LayoutParams params;
     private LinearLayout panel;
     private SharedPreferences prefs;
 
-    private final int GOLD = 0xFFFFD700;
-
     @Override
     public void onCreate() {
         super.onCreate();
+
+        iniciarNotificacao();
 
         if (!Settings.canDrawOverlays(this)) {
             stopSelf();
@@ -38,14 +46,14 @@ public class FloatingService extends Service {
         }
 
         prefs = getSharedPreferences("painel", MODE_PRIVATE);
-        manager = (WindowManager)
-                getSystemService(WINDOW_SERVICE);
+        manager = (WindowManager) getSystemService(WINDOW_SERVICE);
 
         params = new WindowManager.LayoutParams(
-                -2, -2,
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                PixelFormat.TRANSLUCENT
+            -2,
+            -2,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
         );
 
         params.gravity = Gravity.TOP | Gravity.LEFT;
@@ -54,6 +62,41 @@ public class FloatingService extends Service {
 
         createPanel();
         manager.addView(panel, params);
+    }
+
+    private void iniciarNotificacao() {
+        NotificationManager nm =
+            (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+
+        if (Build.VERSION.SDK_INT >= 26) {
+            NotificationChannel channel = new NotificationChannel(
+                CHANNEL_ID,
+                "Painel flutuante",
+                NotificationManager.IMPORTANCE_LOW
+            );
+            nm.createNotificationChannel(channel);
+        }
+
+        Intent intent = new Intent(this, MainActivity.class);
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT |
+            PendingIntent.FLAG_IMMUTABLE
+        );
+
+        Notification notification =
+            new Notification.Builder(this, CHANNEL_ID)
+                .setContentTitle("FreeFire Painel ativo")
+                .setContentText("Painel flutuante em execução")
+                .setSmallIcon(android.R.drawable.ic_menu_manage)
+                .setContentIntent(pendingIntent)
+                .setOngoing(true)
+                .build();
+
+        startForeground(NOTIFICATION_ID, notification);
     }
 
     private void createPanel() {
@@ -85,7 +128,7 @@ public class FloatingService extends Service {
         close.setText("FECHAR PAINEL");
         close.setTextColor(Color.BLACK);
         close.setBackgroundTintList(
-                android.content.res.ColorStateList.valueOf(GOLD)
+            android.content.res.ColorStateList.valueOf(GOLD)
         );
 
         close.setOnClickListener(v -> stopSelf());
@@ -112,7 +155,8 @@ public class FloatingService extends Service {
             new SeekBar.OnSeekBarChangeListener() {
                 @Override
                 public void onProgressChanged(
-                        SeekBar bar, int value, boolean user) {
+                    SeekBar bar, int value, boolean user
+                ) {
                     label.setText(name + ": " + value);
                     if (user) {
                         prefs.edit().putInt(name, value).apply();
@@ -160,9 +204,18 @@ public class FloatingService extends Service {
     }
 
     @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        return START_STICKY;
+    }
+
+    @Override
     public void onDestroy() {
         if (manager != null && panel != null) {
-            manager.removeView(panel);
+            try {
+                manager.removeView(panel);
+            } catch (IllegalArgumentException ignored) {
+            }
+            panel = null;
         }
         super.onDestroy();
     }
