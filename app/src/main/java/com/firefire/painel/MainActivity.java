@@ -1,4 +1,3 @@
-
 package com.firefire.painel;
 
 import android.app.Activity;
@@ -43,17 +42,22 @@ public class MainActivity extends Activity {
         );
 
         start.setOnClickListener(v -> {
-            if (Build.VERSION.SDK_INT >= 23
-                    && !Settings.canDrawOverlays(this)) {
+            if (!Settings.canDrawOverlays(this)) {
                 Intent intent = new Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:" + getPackageName())
                 );
                 startActivity(intent);
             } else {
-                startService(new Intent(
+                Intent serviceIntent = new Intent(
                     this, FloatingService.class
-                ));
+                );
+
+                if (Build.VERSION.SDK_INT >= 26) {
+                    startForegroundService(serviceIntent);
+                } else {
+                    startService(serviceIntent);
+                }
             }
         });
 
