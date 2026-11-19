@@ -23,7 +23,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Localizar e instalar Android SDK
+      - name: Instalar Android SDK
         shell: bash
         run: |
           set -e
@@ -34,23 +34,9 @@ jobs:
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n 1 || true)
 
           if [ -z "$SDKMANAGER" ]; then
-            echo "Instalando Android Command Line Tools"
-
-            mkdir -p "$ANDROID_HOME/cmdline-tools"
-
-            curl -fL \
-              "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" \
-              -o /tmp/cmdline-tools.zip
-
-            unzip -q /tmp/cmdline-tools.zip -d /tmp/android-tools
-
-            mkdir -p "$ANDROID_HOME/cmdline-tools/latest"
-            cp -a /tmp/android-tools/cmdline-tools/. "$ANDROID_HOME/cmdline-tools/latest/"
-
-            SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+            echo "sdkmanager nao encontrado"
+            exit 1
           fi
-
-          chmod +x "$SDKMANAGER"
 
           yes | "$SDKMANAGER" --licenses >/dev/null || true
 
